@@ -1,5 +1,3 @@
-import math
-
 from torch import nn
 import numpy as np
 import torch
@@ -18,6 +16,7 @@ class Model(nn.Module):
         #                             nn.Softmax())
         # self.predict = nn.Sequential(nn.Linear(1024, n_doors),
         #                             nn.Sigmoid())
+    
     def _build_input_(self, hero_state, enemy_state, hero_rewards):
         t = torch.tensor(np.concatenate([hero_state, enemy_state, hero_rewards]).astype(np.float32))[None, :]
         return t
@@ -72,9 +71,9 @@ class TheDoors:
 
 
 class Player:
-    def __init__(self, player_id: int, n_doors, is_random: bool,  selection_function=None):
+    def __init__(self, player_id: int, n_doors, is_random: bool, selection_function=None):
         if is_random:
-            self.selection_function = lambda x,y: None
+            self.selection_function = lambda x, y: None
         else:
             self.selection_function = selection_function
         self.player_id = player_id
@@ -89,7 +88,7 @@ class Player:
         x = self.selection_function(environment.get_state(self.player_id), self.rewards)
         sample = np.random.uniform(0, 1)
         eps_threshold = self.get_eps_threshold()
-
+        
         if sample > eps_threshold:
             t = torch.max(x, dim=1)
             door = t.indices
@@ -103,7 +102,7 @@ class Player:
         if self.is_random:
             return 1.
         else:
-            return piecewise_linear(self.steps, (0,50,200), (1., 1e-2, 1e-2))
+            return piecewise_linear(self.steps, (0, 50, 200), (1., 1e-2, 1e-2))
             # return self.end_eps + (self.start_eps - self.end_eps) * math.exp(-1. * self.steps / self.eps_decay)
     
     def _set_initial_state(self, n_doors):
@@ -165,7 +164,7 @@ if __name__ == '__main__':
             RL_player.rewards[rl_choice] += int(rl_reward)
             random_player.rewards[random_choice] += int(random_reward)
             log_probs = torch.log(rl_estimate)
-            supervised_loss = torch.mean(torch.abs(rl_estimate*rl_reward))
+            supervised_loss = torch.mean(torch.abs(rl_estimate * rl_reward))
             # supervised_loss = torch.mean(torch.abs(rl_estimate - env.thresholds))
             # choice_loss = torch.mean(1. - rl_reward)
             # stato, azione, stato_risultante, reward
@@ -182,6 +181,3 @@ if __name__ == '__main__':
         diffs.append(diff)
     print(diffs)
     print(f'wins: {wins}')
-    
-    
-    

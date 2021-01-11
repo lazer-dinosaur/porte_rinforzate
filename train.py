@@ -17,7 +17,7 @@ class PolicyEstimator(nn.Module):
             nn.Linear(self.n_inputs, self.hidden_units),
             nn.ReLU(),
             nn.Linear(self.hidden_units, self.n_outputs),
-            nn.Softmax(dim=-1))
+            nn.Softmax(dim=-1)).to(device)
         
         # self.network = nn.Sequential(nn.Linear(n_inputs, 200),
         #                              nn.ReLU(),
@@ -27,7 +27,7 @@ class PolicyEstimator(nn.Module):
         #                              # nn.Sigmoid())
     
     def forward(self, state):
-        action_probs = self.network(torch.FloatTensor(state))
+        action_probs = self.network(torch.FloatTensor(state).to(device))
         return action_probs
 
 
@@ -111,8 +111,7 @@ def reinforce(env, policy_estimator, num_episodes=2000, batch_size=10, gamma=0.9
             global_step += 1
             # Get actions and convert to numpy array
             s_0 = env.get_state(player_id=0)
-            action_probs = policy_estimator.forward(
-                s_0).detach().numpy()
+            action_probs = policy_estimator.forward(s_0).cpu().detach().numpy()
             deviation = np.random.normal(0, epsilon, n_doors)
             action_probs_dev = action_probs + deviation
             action_probs_dev = normalize(action_probs_dev)
@@ -151,11 +150,11 @@ def reinforce(env, policy_estimator, num_episodes=2000, batch_size=10, gamma=0.9
                     optimizer.zero_grad()
                     state_tensor = torch.FloatTensor(batch_states)
                     reward_tensor = torch.FloatTensor(
-                        batch_rewards)
+                        batch_rewards).to(device)
                     # Actions are used as indices, must be
                     # LongTensor
                     action_tensor = torch.LongTensor(
-                        batch_actions)
+                        batch_actions).to(device)
                     
                     # Calculate loss
                     logprob = torch.log(
@@ -188,12 +187,18 @@ def reinforce(env, policy_estimator, num_episodes=2000, batch_size=10, gamma=0.9
     
     return total_rewards, wins, tot_diffs, total_rewards, total_rewards_random
 
-
 if __name__ == '__main__':
     n_doors = 10
     turns = 100
     hidden_units = 1024
+    use_cuda = torch.cuda.is_available()
+    if use_cuda:
+        device = torch.device('cuda')
+    else:
+        device = torch.device('cpu')
+    print(f'Computing on {device} device')
+    
     env = TheDoors(n_doors=n_doors, turns=turns)
-    policy_estimator = PolicyEstimator(n_inputs=3 * n_doors, n_outputs=n_doors, hidden_units=hidden_units)
+    policy_estimator = PolicyEstimator(n_inputs=3 * n_doors, n_outputs=n_doors, hidden_units=hidden_units).to(device)
     writer = SummaryWriter(log_dir=f'logs/IU{hidden_units}')
     out = reinforce(env, policy_estimator, num_episodes=10000, batch_size=10, gamma=0.99)
