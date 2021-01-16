@@ -1,0 +1,8 @@
+n_doors: 10
+turns: 100
+hidden_units: 1024
+lr: 0.01
+batch_size: 16
+num_episodes: 80_000
+door_decay : 1.
+epsilon_decay: .999
