@@ -54,9 +54,9 @@ class TheDoors:
         return rewards, done
     
     def get_state(self, player_id):
-        players_state = self.doors_states[player_id]
+        player_state = self.doors_states[player_id]
         other = self.doors_states[1 - player_id]
-        return np.concatenate([players_state, other, self.thresholds])
+        return np.concatenate([player_state, other, self.thresholds])
     
     def reset(self):
         self._set_initial_state(self.n_doors)
@@ -68,8 +68,7 @@ class TheDoors:
 
 
 def discount_rewards(rewards, gamma=0.99):
-    r = np.array([gamma ** i * rewards[i]
-                  for i in range(len(rewards))])
+    r = np.array([gamma ** i * rewards[i] for i in range(len(rewards))])
     # Reverse the array direction for cumsum and then
     # revert back to the original order
     r = r[::-1].cumsum()[::-1]
@@ -91,8 +90,7 @@ def reinforce(env, policy_estimator, num_episodes=2000, batch_size=10, gamma=0.9
     batch_counter = 1
     
     # Define optimizer
-    optimizer = optim.AdamW(policy_estimator.network.parameters(),
-                            lr=0.001)
+    optimizer = optim.AdamW(policy_estimator.network.parameters(), lr=0.001)
     # optimizer = torch.optim.AdamW(list(policy_estimator.network.parameters()), lr=0.00001, betas=(0.999, .999), weight_decay=0.01)
     action_space = np.arange(env.n_doors)
     ep = 0
@@ -107,7 +105,7 @@ def reinforce(env, policy_estimator, num_episodes=2000, batch_size=10, gamma=0.9
         actions = []
         rewards_random = []
         done = False
-        while done == False:
+        while not done:
             global_step += 1
             # Get actions and convert to numpy array
             s_0 = env.get_state(player_id=0)
@@ -118,8 +116,7 @@ def reinforce(env, policy_estimator, num_episodes=2000, batch_size=10, gamma=0.9
             epsilon *= .99999
             epsilon = max(1e-3, epsilon)
             writer.add_scalar('Meta/epsilon', epsilon, global_step)
-            action = np.random.choice(action_space,
-                                      p=action_probs_dev)
+            action = np.random.choice(action_space, p=action_probs_dev)
             random_action = np.random.choice(action_space)
             # rl_choice, rl_estimate = policy_estimator.choose(env)
             # s_1, r, done, _ = env.step(action)
@@ -136,8 +133,7 @@ def reinforce(env, policy_estimator, num_episodes=2000, batch_size=10, gamma=0.9
             
             # If done, batch data
             if done:  # fine episodio
-                batch_rewards.extend(discount_rewards(
-                    rewards, gamma))
+                batch_rewards.extend(discount_rewards(rewards, gamma))
                 batch_states.extend(states)
                 batch_actions.extend(actions)
                 batch_counter += 1
@@ -149,16 +145,13 @@ def reinforce(env, policy_estimator, num_episodes=2000, batch_size=10, gamma=0.9
                 if batch_counter == batch_size:
                     optimizer.zero_grad()
                     state_tensor = torch.FloatTensor(batch_states)
-                    reward_tensor = torch.FloatTensor(
-                        batch_rewards).to(device)
+                    reward_tensor = torch.FloatTensor(batch_rewards).to(device)
                     # Actions are used as indices, must be
                     # LongTensor
-                    action_tensor = torch.LongTensor(
-                        batch_actions).to(device)
+                    action_tensor = torch.LongTensor(batch_actions).to(device)
                     
                     # Calculate loss
-                    logprob = torch.log(
-                        policy_estimator.forward(state_tensor))
+                    logprob = torch.log(policy_estimator.forward(state_tensor))
                     selected_logprobs = reward_tensor * torch.gather(logprob, 1, action_tensor[None, :]).squeeze()
                     loss = -selected_logprobs.mean()
                     writer.add_scalar('Loss', loss, global_step)
@@ -186,6 +179,7 @@ def reinforce(env, policy_estimator, num_episodes=2000, batch_size=10, gamma=0.9
                 ep += 1
     
     return total_rewards, wins, tot_diffs, total_rewards, total_rewards_random
+
 
 if __name__ == '__main__':
     n_doors = 10
