@@ -52,9 +52,9 @@ class TheDoors:
         return rewards, done
     
     def get_state(self, player_id):
-        players_state = self.doors_states[player_id]
+        player_state = self.doors_states[player_id]
         other = self.doors_states[1 - player_id]
-        return np.concatenate([players_state, other, self.players_rewards[player_id]])
+        return np.concatenate([player_state, other, self.players_rewards[player_id]])
     
     def reset(self):
         self._set_initial_state(self.n_doors)
@@ -81,14 +81,13 @@ def normalize(x):
     return x / np.sum(x)
 
 
-def reinforce(env, policy_estimator, optimizer, num_episodes=2000, batch_size=10, gamma=0.99, lr=0.1,
+def reinforce(env, policy_estimator, optimizer, num_episodes=2000, batch_size=10, gamma=0.99,
               epsilon_decay=.99, starting_ep=0, starting_epsilon=1.):  # Set up lists to hold results
     batch_rewards = []
     batch_actions = []
     batch_states = []
     batch_counter = 1
     
-    # Define optimizer
     epsilon = starting_epsilon
     action_space = np.arange(env.n_doors)
     ep = starting_ep
@@ -101,7 +100,7 @@ def reinforce(env, policy_estimator, optimizer, num_episodes=2000, batch_size=10
         rewards = []
         actions = []
         rewards_random = []
-        if (ep % 1000 == 0):
+        if ep % 1000 == 0:
             torch.save({'network': policy_estimator.network.state_dict(),
                         'optimizer': optimizer.state_dict(),
                         'episode': ep,
@@ -111,13 +110,12 @@ def reinforce(env, policy_estimator, optimizer, num_episodes=2000, batch_size=10
         epsilon *= epsilon_decay  # TODO: epsilon decade ad episodio o dentro ogni episodio?
         epsilon = max(1e-3, epsilon)
         writer.add_scalar('Meta/epsilon', epsilon, ep)
-        while done == False:
+        while not done:
             # Get actions and convert to numpy array
             s_0 = env.get_state(player_id=0)
             action_probs = policy_estimator.forward(s_0).cpu().detach().numpy()
             if torch.rand(1) > epsilon:
-                action = np.random.choice(action_space,
-                                          p=action_probs)
+                action = np.random.choice(action_space, p=action_probs)
             else:
                 action = np.random.choice(action_space)
             random_action = np.random.choice(action_space)
@@ -143,16 +141,12 @@ def reinforce(env, policy_estimator, optimizer, num_episodes=2000, batch_size=10
                 if batch_counter == batch_size:
                     optimizer.zero_grad()
                     state_tensor = torch.FloatTensor(batch_states)
-                    reward_tensor = torch.FloatTensor(
-                        batch_rewards).to(device)
-                    # Actions are used as indices, must be
-                    # LongTensor
-                    action_tensor = torch.LongTensor(
-                        batch_actions).to(device)
+                    reward_tensor = torch.FloatTensor(batch_rewards).to(device)
+                    # Actions are used as indices, must be LongTensor
+                    action_tensor = torch.LongTensor(batch_actions).to(device)
                     
                     # Calculate loss
-                    logprob = torch.log(
-                        policy_estimator.forward(state_tensor))
+                    logprob = torch.log(policy_estimator.forward(state_tensor))
                     selected_logprobs = reward_tensor * torch.gather(logprob, 1, action_tensor[None, :]).squeeze()
                     loss = -selected_logprobs.mean()
                     writer.add_scalar('Loss', loss, ep)
@@ -169,6 +163,7 @@ def reinforce(env, policy_estimator, optimizer, num_episodes=2000, batch_size=10
 
 
 if __name__ == '__main__':
+    # get hyperparameters
     config_name = '3'
     version = '10'
     run_name = f'{config_name}.{version}'
@@ -183,18 +178,26 @@ if __name__ == '__main__':
     num_episodes = data['num_episodes']
     door_decay = data['door_decay']
     epsilon_decay = data['epsilon_decay']
+
+    # CPU vs GPU
     use_cuda = torch.cuda.is_available()
     if use_cuda:
         device = torch.device('cuda')
     else:
         device = torch.device('cpu')
     print(f'Computing on {device} device')
-    
+
+    # Define environment
     env = TheDoors(n_doors=n_doors, turns=turns, decay=door_decay)
+
+    # Define network
     policy_estimator = PolicyEstimator(n_inputs=3 * n_doors,
                                        n_outputs=n_doors,
                                        hidden_units=hidden_units).to(device)
+
+    # Define optimizer
     optimizer = optim.AdamW(policy_estimator.parameters(), lr=lr, )
+
     log_dir = f'logs/{run_name}'
     ckpt_path = Path(f'{log_dir}/latest.pt')
     if ckpt_path.exists():
@@ -208,11 +211,11 @@ if __name__ == '__main__':
         starting_epsilon = 1.
     
     writer = SummaryWriter(log_dir=log_dir)
-    out = reinforce(env, policy_estimator,
+    reinforce(env, policy_estimator,
                     optimizer=optimizer,
                     num_episodes=num_episodes,
                     batch_size=batch_size,
-                    gamma=0.99, lr=lr,
+                    gamma=0.99,
                     epsilon_decay=epsilon_decay,
                     starting_ep=starting_step,
                     starting_epsilon=starting_epsilon)
