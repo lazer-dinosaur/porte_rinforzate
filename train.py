@@ -155,7 +155,7 @@ def reinforce(env, policy_estimator, optimizer, num_episodes=2000, batch_size=10
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-c', dest='config', default='1')
+    parser.add_argument('-c', dest='config', default='mlp')
     parser.add_argument('-v', dest='version', default='0')
     parser.add_argument('--reset', action='store_true')
     args = parser.parse_args()
