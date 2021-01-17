@@ -1,0 +1,19 @@
+config_name: 'transformer'
+
+## Setup
+n_doors: 50
+turns: 1000
+door_decay : 0.97
+
+## Model config
+model_name: Transformer
+heads: 8
+n_layers: 2
+model_dim: 128            # final model size == model_dim * heads
+dropout_rate: 0.1
+
+## Training
+lr: 0.01
+batch_size: 16
+num_episodes: 10_000
+epsilon_decay: .999
