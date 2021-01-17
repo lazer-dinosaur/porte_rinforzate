@@ -91,20 +91,17 @@ class Transformer(nn.Module):
                  n_layers: int,
                  dropout_rate: float,
                  device,
-                 model_dim: int = None):
+                 model_dim: int):
         super().__init__()
         encoder_heads = heads
         self.device = device
-        if not model_dim:
-            model_dim = 2 ** 3
         encoder_layer = nn.TransformerEncoderLayer(d_model=model_dim * encoder_heads, nhead=encoder_heads)
-        self.encoder = nn.Sequential(
+        self.network = nn.Sequential(
             nn.Linear(n_inputs, model_dim * encoder_heads),
             nn.LayerNorm(model_dim * encoder_heads),
             nn.LeakyReLU(),
             nn.Dropout(dropout_rate),
-            nn.TransformerEncoder(encoder_layer, num_layers=n_layers))
-        self.output = nn.Sequential(
+            nn.TransformerEncoder(encoder_layer, num_layers=n_layers),
             nn.Linear(model_dim * encoder_heads, 1),
             nn.Sigmoid(),
             nn.Softmax(dim=1)).to(device)
@@ -113,8 +110,7 @@ class Transformer(nn.Module):
         x = torch.FloatTensor(state).transpose(-2, -1).to(self.device)
         if len(x.shape) < 3:
             x = x[None]
-        x = self.encoder(x)
-        x = self.output(x)
+        x = self.network(x)
         return x.squeeze()
     
     @classmethod
